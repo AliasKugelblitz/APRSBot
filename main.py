@@ -44,7 +44,7 @@ def send_ack(client, msgNo, to_call):
     to_call_padded = f"{to_call:<9}"
     if any(char.isalpha() for char in msgNo):
         msgNo += "}"
-    ack_message = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:ack{msgNo}"
+    ack_message = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:ack{msgNo}\r\n"
     try:
         print(f"Sending ACK: {ack_message}")
         client.sendall(ack_message)
@@ -79,7 +79,7 @@ def send_response(client, to_call, response_message):
     messages = split_message(response_message, 48)
 
     for msg in messages:
-        response = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:{msg}"
+        response = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:{msg}\r\n"
         try:
             print(f"Sending response: {response}")
             client.sendall(response)
@@ -92,7 +92,8 @@ def send_response(client, to_call, response_message):
 def handle_packet(packet):
     """Callback function to process incoming packets."""
     print(f"Received packet: {packet}")
-    if "message_text" in packet and packet.get("addresse") == CALLSIGN:
+    target = packet.get("addresse", "").strip()
+    if "message_text" in packet and (target == CALLSIGN or target == TACTICAL_NAME.strip()):
         from_call = packet.get("from")
         msgNo = packet.get("msgNo")
         message_text = packet.get("message_text")
@@ -117,7 +118,7 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"b/{CALLSIGN}")
+    client.set_filter(f"b/{CALLSIGN}/{TACTICAL_NAME.strip()}")
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:

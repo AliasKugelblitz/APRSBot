@@ -125,7 +125,7 @@ def connect_to_aprs():
         print("Connected to APRS-IS server successfully")
         formatted_name = TACTICAL_NAME.strip().ljust(9)
         timestamp = get_aprs_timestamp()
-        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{formatted_name}*{timestamp}4045.37N/07339.86W/SBot online\r\n"
+        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{formatted_name}*{timestamp}4045.37N/07339.86W\SBot online\r\n"
         client.sendall(pos_packet)
         print(f"Position beacon sent for {CALLSIGN}")
         client.consumer(handle_packet, raw=False)

@@ -117,7 +117,7 @@ def connect_to_aprs():
     try:
         client.connect(SERVER, PORT)
         print("Connected to APRS-IS server successfully")
-        formatted_name = TACTICAL_NAME.ljust(9)
+        formatted_name = TACTICAL_NAME.strip().ljust(9)
         pos_packet = f"{CALLSIGN}>APRS,TCPIP*;{formatted_name}*4043.94N/07341.08W#Bot is online!"
         client.sendall(pos_packet)
         print(f"Position beacon sent for {CALLSIGN}")

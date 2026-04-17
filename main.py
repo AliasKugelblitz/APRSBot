@@ -8,7 +8,7 @@ import os
 # APRS login details
 CALLSIGN = "KE2FCA-10"
 PASSCODE = "18848"  # Your passcode here
-
+TACTICAL_NAME = "ALKBOT   "
 # APRS server settings
 SERVER = "rotate.aprs2.net"
 PORT = 14580
@@ -117,6 +117,8 @@ def connect_to_aprs():
     try:
         client.connect(SERVER, PORT)
         print("Connected to APRS-IS server successfully")
+        pos_packet = f"{CALLSIGN}>APRS,TCPIP*;{TACTICAL_NAME}*4043.94N/07341.08W#Bot is online!"
+        print(f"Position beacon sent for {CALLSIGN}")
         client.consumer(handle_packet, raw=False)
     except Exception as e:
         print(f"Error connecting to APRS-IS server: {e}")

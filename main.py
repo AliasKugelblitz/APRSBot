@@ -42,24 +42,28 @@ def get_aprs_timestamp():
 def send_ack(client, msgNo, to_call):
     """Function to send ACK in a separate thread."""
     to_call_padded = f"{to_call:<9}"
+    
+    # Handle message IDs that contain letters
     if any(char.isalpha() for char in msgNo):
         msgNo += "}"
-    ack_message = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:ack{msgNo}"
+    
+    # 1. Source MUST be the login CALLSIGN for the server to accept it
+    # 2. Every raw packet MUST end with \r\n
+    ack_message = f"{CALLSIGN}>APRS::{to_call_padded}:ack{msgNo}\r\n"
+    
     try:
-        print(f"Sending ACK: {ack_message}")
-        client.sendall(ack_message)
+        print(f"Sending ACK: {ack_message.strip()}")
+        client.sendall(ack_message.encode('utf-8')) # Use encode for reliability
         print(f"ACK sent for message {msgNo} to {to_call}")
-        time.sleep(5)
     except Exception as e:
         print(f"Error sending ACK: {e}")
 
 
 def send_response(client, to_call, response_message):
-    """Function to send a response message in a separate thread, splitting at spaces."""
+    """Function to send a response message in a separate thread."""
     to_call_padded = f"{to_call:<9}"
 
     def split_message(message, max_length):
-        """Helper function to split message at spaces."""
         words = message.split()
         messages = []
         current_message = ""
@@ -75,18 +79,20 @@ def send_response(client, to_call, response_message):
             messages.append(current_message)
         return messages
 
-    # Split the response message at spaces to avoid cutting off words
     messages = split_message(response_message, 48)
 
     for msg in messages:
-        response = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:{msg}"
+        # Again: Use CALLSIGN for the header and append \r\n
+        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}\r\n"
         try:
-            print(f"Sending response: {response}")
-            client.sendall(response)
+            print(f"Sending response: {response.strip()}")
+            client.sendall(response.encode('utf-8'))
             print(f"Response sent to {to_call}")
         except Exception as e:
             print(f"Error sending response: {e}")
-        time.sleep(5)
+        
+        # APRS-IS suggests a delay between bursts
+        time.sleep(2)
 
 
 def handle_packet(packet):

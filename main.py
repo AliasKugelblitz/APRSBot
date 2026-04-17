@@ -44,7 +44,7 @@ def send_ack(client, msgNo, to_call):
     to_call_padded = f"{to_call:<9}"
     if any(char.isalpha() for char in msgNo):
         msgNo += "}"
-    ack_message = f"{CALLSIGN}>APRS::{to_call_padded}:ack{msgNo}"
+    ack_message = f"{TACTICAL_NAME}>APRS::{to_call_padded}:ack{msgNo}"
     try:
         print(f"Sending ACK: {ack_message}")
         client.sendall(ack_message)
@@ -79,7 +79,7 @@ def send_response(client, to_call, response_message):
     messages = split_message(response_message, 48)
 
     for msg in messages:
-        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}"
+        response = f"{TACTICAL_NAME}>APRS::{to_call_padded}:{msg}"
         try:
             print(f"Sending response: {response}")
             client.sendall(response)
@@ -117,7 +117,7 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"b/{CALLSIGN}")
+    client.set_filter(f"b/{CALLSIGN}/{TACTICAL_NAME}")
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:

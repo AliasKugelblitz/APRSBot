@@ -90,26 +90,30 @@ def send_response(client, to_call, response_message):
 
 
 def handle_packet(packet):
-    """Callback function to process incoming packets."""
-    print(f"Received packet: {packet}")
-    if "message_text" in packet and packet.get("addresse") == CALLSIGN:
+    # Log all incoming messages for debugging
+    if packet.get("format") == "message":
+        print(f"Message from {packet.get('from')} to {packet.get('addresse')}: {packet.get('message_text')}")
+
+    # Check if the message is for ALKBOT
+    target = packet.get("addresse", "").strip()
+    if "message_text" in packet and target == "ALKBOT":
         from_call = packet.get("from")
         msgNo = packet.get("msgNo")
-        message_text = packet.get("message_text")
+        
+        # Strip APRS message IDs (e.g., "hello {01" becomes "hello")
+        raw_text = packet.get("message_text", "").split('{')[0].strip().lower()
 
+        # Handle ACKs
         if msgNo and msgNo not in received_msgs:
-            print(f"Received message: {message_text} from {from_call}")
             received_msgs.add(msgNo)
-            print(f"Starting thread to send ACK for msgNo: {msgNo} from: {from_call}")
             threading.Thread(target=send_ack, args=(client, msgNo, from_call)).start()
 
-        message_text_lower = message_text.lower()
-        command_function = command_functions.get(message_text_lower)
+        # Match Command
+        command_function = command_functions.get(raw_text)
         if command_function:
             response_message = command_function()
             if response_message:
-                time.sleep(5)
-                print(f"Received command '{message_text}' from {from_call}, sending response...")
+                print(f"Executing command '{raw_text}' for {from_call}")
                 threading.Thread(target=send_response, args=(client, from_call, response_message)).start()
 
 def connect_to_aprs():
@@ -117,7 +121,7 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"b/{CALLSIGN}")
+    client.set_filter(f"p/ALKBOT* b/ALKBOT* b/{CALLSIGN}")
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:

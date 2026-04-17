@@ -121,7 +121,7 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"p/ALKBOT* b/ALKBOT* b/{CALLSIGN}")
+    client.set_filter("b/KE2FCA-10/ALKBOT*")
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:

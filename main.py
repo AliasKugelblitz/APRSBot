@@ -86,7 +86,7 @@ def send_response(client, to_call, response_message):
 def handle_packet(packet):
     """Callback function to process incoming packets."""
     print(f"Received packet: {packet}")
-    if "message_text" in packet and packet.get("addresse") == CALLSIGN:
+    if "message_text" in packet and packet.get("addressee") == CALLSIGN:
         from_call = packet.get("from")
         msgNo = packet.get("msgNo")
         message_text = packet.get("message_text")
@@ -111,7 +111,7 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"b/{CALLSIGN}")
+    client.set_filter(f"t/{CALLSIGN}")
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:

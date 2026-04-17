@@ -1,7 +1,5 @@
 import aprslib
 import threading
-import queue
-import time
 import importlib
 import os
 import time
@@ -9,7 +7,7 @@ import time
 # APRS login details
 CALLSIGN = "KE2FCA-10"
 PASSCODE = "18848"  # Your passcode here
-TACTICAL_NAME = "ALKBOT   "
+TACTICAL_NAME = "ALKBOT" # Simplified for logic checks
 # APRS server settings
 SERVER = "rotate.aprs2.net"
 PORT = 14580
@@ -25,41 +23,37 @@ command_functions = {}
 
 def load_commands():
     """Dynamically load command modules from the commands folder."""
+    if not os.path.exists(COMMANDS_FOLDER):
+        return
     for filename in os.listdir(COMMANDS_FOLDER):
         if filename.endswith(".py") and filename != "__init__.py":
             module_name = filename[:-3]
             module = importlib.import_module(f"{COMMANDS_FOLDER}.{module_name}")
             if hasattr(module, 'handle_command'):
                 command_functions[module_name] = module.handle_command
-            else:
-                print(f"Module {module_name} does not have a 'handle_command' function.")
 
 def get_aprs_timestamp():
     """Returns APRS formatted timestamp: DDHHMMz (UTC)"""
-    now = time.gmtime()
-    return time.strftime("%d%H%M", now) + "z"
+    return time.strftime("%d%H%M", time.gmtime()) + "z"
 
 def send_ack(client, msgNo, to_call):
     """Function to send ACK in a separate thread."""
     to_call_padded = f"{to_call:<9}"
     if any(char.isalpha() for char in msgNo):
         msgNo += "}"
-    ack_message = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:ack{msgNo}\r\n"
+    # Source MUST be CALLSIGN to pass server validation
+    ack_message = f"{CALLSIGN}>APRS::{to_call_padded}:ack{msgNo}\r\n"
     try:
-        print(f"Sending ACK: {ack_message}")
         client.sendall(ack_message)
-        print(f"ACK sent for message {msgNo} to {to_call}")
-        time.sleep(5)
+        print(f"ACK sent to {to_call}")
     except Exception as e:
         print(f"Error sending ACK: {e}")
 
-
 def send_response(client, to_call, response_message):
-    """Function to send a response message in a separate thread, splitting at spaces."""
+    """Function to send a response message in a separate thread."""
     to_call_padded = f"{to_call:<9}"
 
     def split_message(message, max_length):
-        """Helper function to split message at spaces."""
         words = message.split()
         messages = []
         current_message = ""
@@ -68,69 +62,66 @@ def send_response(client, to_call, response_message):
                 messages.append(current_message)
                 current_message = word
             else:
-                if current_message:
-                    current_message += " "
-                current_message += word
+                current_message = f"{current_message} {word}".strip()
         if current_message:
             messages.append(current_message)
         return messages
 
-    # Split the response message at spaces to avoid cutting off words
     messages = split_message(response_message, 48)
 
     for msg in messages:
-        response = f"{TACTICAL_NAME.strip()}>APRS::{to_call_padded}:{msg}\r\n"
+        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}\r\n"
         try:
-            print(f"Sending response: {response}")
             client.sendall(response)
             print(f"Response sent to {to_call}")
         except Exception as e:
             print(f"Error sending response: {e}")
         time.sleep(5)
 
-
 def handle_packet(packet):
     """Callback function to process incoming packets."""
-    print(f"Received packet: {packet}")
-    target = packet.get("addresse", "").strip()
-    if "message_text" in packet and (target == CALLSIGN or target == TACTICAL_NAME.strip()):
+    # Log incoming to see why ALKBOT might be failing
+    raw_addresse = packet.get("addresse", "").strip()
+    message_text = packet.get("message_text", "")
+    
+    # Logic: Accept if addressee is CALLSIGN OR if TACTICAL_NAME is in the addressee field
+    if message_text and (raw_addresse == CALLSIGN or TACTICAL_NAME in raw_addresse):
         from_call = packet.get("from")
         msgNo = packet.get("msgNo")
-        message_text = packet.get("message_text")
 
         if msgNo and msgNo not in received_msgs:
-            print(f"Received message: {message_text} from {from_call}")
             received_msgs.add(msgNo)
-            print(f"Starting thread to send ACK for msgNo: {msgNo} from: {from_call}")
+            print(f"Accepted msg for {raw_addresse} from {from_call}")
             threading.Thread(target=send_ack, args=(client, msgNo, from_call)).start()
 
-        message_text_lower = message_text.lower()
-        command_function = command_functions.get(message_text_lower)
+        command_function = command_functions.get(message_text.lower().strip())
         if command_function:
             response_message = command_function()
             if response_message:
-                time.sleep(5)
-                print(f"Received command '{message_text}' from {from_call}, sending response...")
                 threading.Thread(target=send_response, args=(client, from_call, response_message)).start()
 
 def connect_to_aprs():
     """Function to connect to the APRS network."""
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
-    print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"b/{CALLSIGN}/{TACTICAL_NAME.strip()}")
-    print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
+    
+    # Combined filter: b/ for your call, p/ for packets starting with ALK
+    # This is more reliable than g/ on some rotate servers
+    client.set_filter(f"b/{CALLSIGN} p/{TACTICAL_NAME[:3]}")
 
     try:
         client.connect(SERVER, PORT)
-        print("Connected to APRS-IS server successfully")
+        print(f"Connected as {CALLSIGN}")
+        
+        # Create the Tactical Object (Object name MUST be 9 chars)
+        obj_name = f"{TACTICAL_NAME:<9}"
         timestamp = get_aprs_timestamp()
-        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{TACTICAL_NAME}*{timestamp}4045.37N/07339.86W?Bot online\r\n"
+        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{obj_name}*{timestamp}4045.37N/07339.86W?Bot online\r\n"
+        
         client.sendall(pos_packet)
-        print(f"Position beacon sent for {CALLSIGN}")
         client.consumer(handle_packet, raw=False)
     except Exception as e:
-        print(f"Error connecting to APRS-IS server: {e}")
+        print(f"Connection error: {e}")
 
 if __name__ == "__main__":
     load_commands()

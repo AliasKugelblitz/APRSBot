@@ -79,7 +79,7 @@ def send_response(client, to_call, response_message):
     messages = split_message(response_message, 48)
 
     for msg in messages:
-        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}"
+        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}\n"
         try:
             print(f"Sending response: {response}")
             client.sendall(response)

@@ -7,7 +7,7 @@ import os
 
 # APRS login details
 CALLSIGN = "KE2FCA-10"
-PASSCODE = "21649"  # Your passcode here
+PASSCODE = "13658"  # Your passcode here
 
 # APRS server settings
 SERVER = "rotate.aprs2.net"

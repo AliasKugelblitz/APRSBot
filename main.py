@@ -4,6 +4,7 @@ import queue
 import time
 import importlib
 import os
+import time
 
 # APRS login details
 CALLSIGN = "KE2FCA-10"
@@ -32,6 +33,11 @@ def load_commands():
                 command_functions[module_name] = module.handle_command
             else:
                 print(f"Module {module_name} does not have a 'handle_command' function.")
+
+def get_aprs_timestamp():
+    """Returns APRS formatted timestamp: DDHHMMz (UTC)"""
+    now = time.gmtime()
+    return time.strftime("%d%H%M", now) + "z"
 
 def send_ack(client, msgNo, to_call):
     """Function to send ACK in a separate thread."""
@@ -118,7 +124,8 @@ def connect_to_aprs():
         client.connect(SERVER, PORT)
         print("Connected to APRS-IS server successfully")
         formatted_name = TACTICAL_NAME.strip().ljust(9)
-        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{formatted_name}*4043.94N/07341.08W#Bot online\r\n"
+        timestamp = get_aprs_timestamp()
+        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{formatted_name}*{timestamp}4043.94N/07341.08W#Bot online\r\n"
         client.sendall(pos_packet)
         print(f"Position beacon sent for {CALLSIGN}")
         client.consumer(handle_packet, raw=False)

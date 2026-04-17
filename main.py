@@ -44,7 +44,7 @@ def send_ack(client, msgNo, to_call):
     to_call_padded = f"{to_call:<9}"
     if any(char.isalpha() for char in msgNo):
         msgNo += "}"
-    ack_message = f"{TACTICAL_NAME}>APRS::{to_call_padded}:ack{msgNo}"
+    ack_message = f"{CALLSIGN}>APRS::{to_call_padded}:ack{msgNo}"
     try:
         print(f"Sending ACK: {ack_message}")
         client.sendall(ack_message)
@@ -79,7 +79,7 @@ def send_response(client, to_call, response_message):
     messages = split_message(response_message, 48)
 
     for msg in messages:
-        response = f"{TACTICAL_NAME}>APRS::{to_call_padded}:{msg}"
+        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}"
         try:
             print(f"Sending response: {response}")
             client.sendall(response)
@@ -117,15 +117,14 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"b/{CALLSIGN}{TACTICAL_NAME.strip().ljust(9)}")  # Filter for messages addressed to our callsign and tactical name
-    print(f"Filter set to listen only for messages addressed to {CALLSIGN} and {TACTICAL_NAME.strip().ljust(9)}")
+    client.set_filter(f"b/{CALLSIGN}")
+    print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:
         client.connect(SERVER, PORT)
         print("Connected to APRS-IS server successfully")
-        formatted_name = TACTICAL_NAME.strip().ljust(9)
         timestamp = get_aprs_timestamp()
-        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{formatted_name}*{timestamp}4045.37N/07339.86W?Bot online\r\n"
+        pos_packet = f"{CALLSIGN}>APRS,TCPIP*:;{TACTICAL_NAME}*{timestamp}4045.37N/07339.86W?Bot online\r\n"
         client.sendall(pos_packet)
         print(f"Position beacon sent for {CALLSIGN}")
         client.consumer(handle_packet, raw=False)

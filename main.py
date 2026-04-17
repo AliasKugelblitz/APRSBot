@@ -42,28 +42,24 @@ def get_aprs_timestamp():
 def send_ack(client, msgNo, to_call):
     """Function to send ACK in a separate thread."""
     to_call_padded = f"{to_call:<9}"
-    
-    # Handle message IDs that contain letters
     if any(char.isalpha() for char in msgNo):
         msgNo += "}"
-    
-    # 1. Source MUST be the login CALLSIGN for the server to accept it
-    # 2. Every raw packet MUST end with \r\n
-    ack_message = f"{CALLSIGN}>APRS::{to_call_padded}:ack{msgNo}\r\n"
-    
+    ack_message = f"{CALLSIGN}>APRS::{to_call_padded}:ack{msgNo}"
     try:
-        print(f"Sending ACK: {ack_message.strip()}")
-        client.sendall(ack_message.encode('utf-8')) # Use encode for reliability
+        print(f"Sending ACK: {ack_message}")
+        client.sendall(ack_message)
         print(f"ACK sent for message {msgNo} to {to_call}")
+        time.sleep(5)
     except Exception as e:
         print(f"Error sending ACK: {e}")
 
 
 def send_response(client, to_call, response_message):
-    """Function to send a response message in a separate thread."""
+    """Function to send a response message in a separate thread, splitting at spaces."""
     to_call_padded = f"{to_call:<9}"
 
     def split_message(message, max_length):
+        """Helper function to split message at spaces."""
         words = message.split()
         messages = []
         current_message = ""
@@ -79,62 +75,49 @@ def send_response(client, to_call, response_message):
             messages.append(current_message)
         return messages
 
+    # Split the response message at spaces to avoid cutting off words
     messages = split_message(response_message, 48)
 
     for msg in messages:
-        # Again: Use CALLSIGN for the header and append \r\n
-        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}\r\n"
+        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}"
         try:
-            print(f"Sending response: {response.strip()}")
-            client.sendall(response.encode('utf-8'))
+            print(f"Sending response: {response}")
+            client.sendall(response)
             print(f"Response sent to {to_call}")
         except Exception as e:
             print(f"Error sending response: {e}")
-        
-        # APRS-IS suggests a delay between bursts
-        time.sleep(2)
+        time.sleep(5)
 
 
 def handle_packet(packet):
-    # 1. Log every message received so we can see what's happening
-    if packet.get("format") == "message":
+    """Callback function to process incoming packets."""
+    print(f"Received packet: {packet}")
+    if "message_text" in packet and packet.get("addresse") == CALLSIGN:
         from_call = packet.get("from")
-        addresse = packet.get("addresse", "").strip()
-        msg_text = packet.get("message_text", "")
-        print(f"DEBUG: Msg from {from_call} to {addresse}: {msg_text}")
+        msgNo = packet.get("msgNo")
+        message_text = packet.get("message_text")
 
-        # 2. Match the Tactical Call
-        # We use .startswith because radios often send 'ALKBOT-0' or 'ALKBOT   '
-        if addresse.startswith("ALKBOT"):
-            msgNo = packet.get("msgNo")
-            
-            # 3. Clean the message text
-            # Radios often add a message ID like 'hello {01'. We strip that off.
-            clean_text = msg_text.split('{')[0].strip().lower()
+        if msgNo and msgNo not in received_msgs:
+            print(f"Received message: {message_text} from {from_call}")
+            received_msgs.add(msgNo)
+            print(f"Starting thread to send ACK for msgNo: {msgNo} from: {from_call}")
+            threading.Thread(target=send_ack, args=(client, msgNo, from_call)).start()
 
-            # 4. Handle Acknowledgement (ACK)
-            if msgNo and msgNo not in received_msgs:
-                received_msgs.add(msgNo)
-                print(f"ACKing message {msgNo} from {from_call}")
-                threading.Thread(target=send_ack, args=(client, msgNo, from_call)).start()
-
-            # 5. Execute Command
-            # This looks for a file in /commands that matches the message text
-            command_func = command_functions.get(clean_text)
-            if command_func:
-                print(f"Command found: {clean_text}. Executing...")
-                response = command_func()
-                if response:
-                    threading.Thread(target=send_response, args=(client, from_call, response)).start()
-            else:
-                print(f"No command script found for '{clean_text}' in /commands folder.")
+        message_text_lower = message_text.lower()
+        command_function = command_functions.get(message_text_lower)
+        if command_function:
+            response_message = command_function()
+            if response_message:
+                time.sleep(5)
+                print(f"Received command '{message_text}' from {from_call}, sending response...")
+                threading.Thread(target=send_response, args=(client, from_call, response_message)).start()
 
 def connect_to_aprs():
     """Function to connect to the APRS network."""
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter("b/KE2FCA-10/ALKBOT*")
+    client.set_filter(f"b/{CALLSIGN}")
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:

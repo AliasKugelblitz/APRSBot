@@ -7,7 +7,7 @@ import os
 
 # APRS login details
 CALLSIGN = "KE2FCA-10"
-PASSCODE = "18848"  # Your passcode here
+PASSCODE = "21649"  # Your passcode here
 TACTICAL_NAME = "ALKBOT   "
 # APRS server settings
 SERVER = "rotate.aprs2.net"

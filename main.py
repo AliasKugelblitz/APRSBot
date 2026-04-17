@@ -96,31 +96,38 @@ def send_response(client, to_call, response_message):
 
 
 def handle_packet(packet):
-    # Log all incoming messages for debugging
+    # 1. Log every message received so we can see what's happening
     if packet.get("format") == "message":
-        print(f"Message from {packet.get('from')} to {packet.get('addresse')}: {packet.get('message_text')}")
-
-    # Check if the message is for ALKBOT
-    target = packet.get("addresse", "").strip()
-    if "message_text" in packet and target == "ALKBOT":
         from_call = packet.get("from")
-        msgNo = packet.get("msgNo")
-        
-        # Strip APRS message IDs (e.g., "hello {01" becomes "hello")
-        raw_text = packet.get("message_text", "").split('{')[0].strip().lower()
+        addresse = packet.get("addresse", "").strip()
+        msg_text = packet.get("message_text", "")
+        print(f"DEBUG: Msg from {from_call} to {addresse}: {msg_text}")
 
-        # Handle ACKs
-        if msgNo and msgNo not in received_msgs:
-            received_msgs.add(msgNo)
-            threading.Thread(target=send_ack, args=(client, msgNo, from_call)).start()
+        # 2. Match the Tactical Call
+        # We use .startswith because radios often send 'ALKBOT-0' or 'ALKBOT   '
+        if addresse.startswith("ALKBOT"):
+            msgNo = packet.get("msgNo")
+            
+            # 3. Clean the message text
+            # Radios often add a message ID like 'hello {01'. We strip that off.
+            clean_text = msg_text.split('{')[0].strip().lower()
 
-        # Match Command
-        command_function = command_functions.get(raw_text)
-        if command_function:
-            response_message = command_function()
-            if response_message:
-                print(f"Executing command '{raw_text}' for {from_call}")
-                threading.Thread(target=send_response, args=(client, from_call, response_message)).start()
+            # 4. Handle Acknowledgement (ACK)
+            if msgNo and msgNo not in received_msgs:
+                received_msgs.add(msgNo)
+                print(f"ACKing message {msgNo} from {from_call}")
+                threading.Thread(target=send_ack, args=(client, msgNo, from_call)).start()
+
+            # 5. Execute Command
+            # This looks for a file in /commands that matches the message text
+            command_func = command_functions.get(clean_text)
+            if command_func:
+                print(f"Command found: {clean_text}. Executing...")
+                response = command_func()
+                if response:
+                    threading.Thread(target=send_response, args=(client, from_call, response)).start()
+            else:
+                print(f"No command script found for '{clean_text}' in /commands folder.")
 
 def connect_to_aprs():
     """Function to connect to the APRS network."""

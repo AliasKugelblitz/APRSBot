@@ -54,12 +54,8 @@ def send_ack(client, msgNo, to_call):
         print(f"Error sending ACK: {e}")
 
 
-def send_response(client, to_call, response_message):
-    """Function to send a response message in a separate thread, splitting at spaces."""
-    to_call_padded = f"{to_call:<9}"
-
+def send_response(client, to_call, response_message, msgNo=None):
     def split_message(message, max_length):
-        """Helper function to split message at spaces."""
         words = message.split()
         messages = []
         current_message = ""
@@ -75,18 +71,22 @@ def send_response(client, to_call, response_message):
             messages.append(current_message)
         return messages
 
-    # Split the response message at spaces to avoid cutting off words
-    messages = split_message(response_message, 48)
+    if msgNo:
+        ack_packet = f"{CALLSIGN}>APRS::{to_call}:ack{msgNo}\n"
+        client.sendall(ack_packet.encode('utf-8'))
+        time.sleep(1)
+
+    messages = split_message(response_message, 60)
 
     for msg in messages:
-        response = f"{CALLSIGN}>APRS::{to_call_padded}:{msg}"
+        response = f"{CALLSIGN}>APRS::{to_call}:{msg}\n"
         try:
-            print(f"Sending response: {response}")
-            client.sendall(response)
+            print(f"Sending response: {response.strip()}")
+            client.sendall(response.encode('utf-8'))
             print(f"Response sent to {to_call}")
         except Exception as e:
             print(f"Error sending response: {e}")
-        time.sleep(5)
+        time.sleep(2)
 
 
 def handle_packet(packet):

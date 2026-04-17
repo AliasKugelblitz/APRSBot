@@ -117,8 +117,8 @@ def connect_to_aprs():
     try:
         client.connect(SERVER, PORT)
         print("Connected to APRS-IS server successfully")
-        client.sendall(f"{CALLSIGN}>APRS,TCPIP*:>[:ALKBOT] Bot is online!")
-        print("Tactical beacon 'ALKBOT' sent.")
+        client.sendall(f"{CALLSIGN}>APRS,TCPIP*:!4045.41N/07339.85W>[ALKBOT] Bot is online!")
+        print("Position beacon sent.")
         client.consumer(handle_packet, raw=False)
     except Exception as e:
         print(f"Error connecting to APRS-IS server: {e}")

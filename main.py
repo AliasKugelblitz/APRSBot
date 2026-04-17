@@ -7,7 +7,7 @@ import os
 
 # APRS login details
 CALLSIGN = "KE2FCA-10"
-PASSCODE = "13658"  # Your passcode here
+PASSCODE = "18848"  # Your passcode here
 
 # APRS server settings
 SERVER = "rotate.aprs2.net"
@@ -86,7 +86,7 @@ def send_response(client, to_call, response_message):
 def handle_packet(packet):
     """Callback function to process incoming packets."""
     print(f"Received packet: {packet}")
-    if "message_text" in packet and packet.get("addressee") == CALLSIGN:
+    if "message_text" in packet and packet.get("addresse") == CALLSIGN:
         from_call = packet.get("from")
         msgNo = packet.get("msgNo")
         message_text = packet.get("message_text")
@@ -111,14 +111,12 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"t/{CALLSIGN}")
+    client.set_filter(f"b/{CALLSIGN}")
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:
         client.connect(SERVER, PORT)
         print("Connected to APRS-IS server successfully")
-        client.sendall(f"{CALLSIGN}>APRS,TCPIP*:!4045.41N/07339.85W>[ALKBOT] Bot is online!")
-        print("Position beacon sent.")
         client.consumer(handle_packet, raw=False)
     except Exception as e:
         print(f"Error connecting to APRS-IS server: {e}")

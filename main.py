@@ -117,7 +117,7 @@ def connect_to_aprs():
     global client
     client = aprslib.IS(CALLSIGN, PASSCODE, port=PORT)
     print(f"Connecting to APRS-IS server {SERVER}:{PORT} as {CALLSIGN}")
-    client.set_filter(f"b/{CALLSIGN}")
+    client.set_filter(f"b/{CALLSIGN}{TACTICAL_NAME.strip().ljust(9)}")  # Filter for messages addressed to our callsign and tactical name
     print(f"Filter set to listen only for messages addressed to {CALLSIGN}")
 
     try:
